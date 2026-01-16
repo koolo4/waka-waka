@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { AnimeCard } from '@/components/anime-card'
 import { AnimeSearchFilter } from '@/components/anime-search-filter'
+import { TrendingAnimeSection } from '@/components/trending-anime-section'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, TrendingUp, Users, Film, MessageCircle, Zap, Activity, Database } from 'lucide-react'
@@ -213,6 +214,11 @@ export default async function HomePage() {
           <div className="absolute bottom-1/4 left-1/3 text-6xl font-mono text-green-500 rotate-12">11</div>
         </div>
       </section>
+
+      {/* Trending Section */}
+      <section className="py-20 px-4 relative">
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <TrendingAnimeSection />
 
       {/* Terminal Footer */}
       <footer className="relative py-8 border-t border-cyan-500/20">
