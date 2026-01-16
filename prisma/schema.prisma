@@ -21,12 +21,19 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Связи
-  createdAnime    Anime[]           @relation("AnimeCreator")
-  ratings         Rating[]
-  comments        Comment[]
-  commentLikes    CommentLike[]
-  animeStatuses   UserAnimeStatus[]
-  loginAttempts   LoginAttempt[]
+  createdAnime     Anime[]            @relation("AnimeCreator")
+  ratings          Rating[]
+  comments         Comment[]
+  commentLikes     CommentLike[]
+  animeStatuses    UserAnimeStatus[]
+  loginAttempts    LoginAttempt[]
+  
+  // Система друзей
+  friendRequestsSent Friend[] @relation("UserSender")
+  friendRequestsReceived Friend[] @relation("UserReceiver")
+  
+  // Рекомендации
+  recommendations  Recommendation[]
 
   @@map("users")
 }
@@ -52,10 +59,11 @@ model Anime {
   createdAt   DateTime @default(now()) @map("created_at")
 
   // Связи
-  creator       User?             @relation("AnimeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  ratings       Rating[]
-  comments      Comment[]
-  userStatuses  UserAnimeStatus[]
+  creator          User?             @relation("AnimeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  ratings          Rating[]
+  comments         Comment[]
+  userStatuses     UserAnimeStatus[]
+  recommendations  Recommendation[]
 
   @@map("anime")
 }
@@ -168,4 +176,50 @@ model LoginAttempt {
   @@index([username])
   @@index([blockedUntil])
   @@map("login_attempts")
+}
+// Модель друзей
+model Friend {
+  id        Int      @id @default(autoincrement())
+  senderId  Int      @map("sender_id")
+  receiverId Int     @map("receiver_id")
+  status    FriendStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  acceptedAt DateTime? @map("accepted_at")
+
+  // Связи
+  sender   User @relation("UserSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("UserReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("friends")
+}
+
+// Перечисление статусов дружбы
+enum FriendStatus {
+  PENDING   @map("pending")   // Ожидание принятия
+  ACCEPTED  @map("accepted")  // Принято
+  BLOCKED   @map("blocked")   // Заблокирован
+}
+
+// Модель рекомендаций
+model Recommendation {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  animeId   Int      @map("anime_id")
+  reason    String   // Причина рекомендации (genre, friend_rating, similar)
+  score     Float    @default(0.0) // Релевантность (0-100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Связи
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
+  @@index([userId])
+  @@index([animeId])
+  @@index([score])
+  @@map("recommendations")
 }
