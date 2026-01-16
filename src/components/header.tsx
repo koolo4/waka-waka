@@ -46,6 +46,13 @@ export function Header() {
                 </Link>
               </Button>
 
+              <Button className="cyber-button border-cyan-500/50 text-cyan-400 hover:border-cyan-400 hover:text-cyan-300" asChild>
+                <Link href="/users" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Пользователи
+                </Link>
+              </Button>
+
               {isAdmin && (
                 <Button className="cyber-button border-green-500/50 text-green-400 hover:border-green-400 hover:text-green-300" asChild>
                   <Link href="/admin/add-anime" className="flex items-center gap-2">
