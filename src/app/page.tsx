@@ -219,6 +219,8 @@ export default async function HomePage() {
       <section className="py-20 px-4 relative">
         <div className="container mx-auto max-w-7xl relative z-10">
           <TrendingAnimeSection />
+        </div>
+      </section>
 
       {/* Terminal Footer */}
       <footer className="relative py-8 border-t border-cyan-500/20">
