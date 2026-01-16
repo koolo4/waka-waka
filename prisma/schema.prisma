@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Модель пользователей
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Связи
+  createdAnime    Anime[]           @relation("AnimeCreator")
+  ratings         Rating[]
+  comments        Comment[]
+  commentLikes    CommentLike[]
+  animeStatuses   UserAnimeStatus[]
+  loginAttempts   LoginAttempt[]
+
+  @@map("users")
+}
+
+// Перечисление ролей
+enum Role {
+  USER  @map("user")
+  ADMIN @map("admin")
+}
+
+// Модель аниме
+model Anime {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  genre       String?
+  year        Int?
+  studio      String?
+  imageUrl    String?  @map("image_url")
+  trailerUrl  String?  @map("trailer_url")
+  videoUrl    String?  @map("video_url")
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Связи
+  creator       User?             @relation("AnimeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  ratings       Rating[]
+  comments      Comment[]
+  userStatuses  UserAnimeStatus[]
+
+  @@map("anime")
+}
+
+// Модель оценок (детализированная система)
+model Rating {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  animeId          Int      @map("anime_id")
+  storyRating      Int      @map("story_rating") // Сюжет (1-10)
+  artRating        Int      @map("art_rating") // Рисовка (1-10)
+  charactersRating Int      @map("characters_rating") // Персонажи (1-10)
+  soundRating      Int      @map("sound_rating") // Звук (1-10)
+  overallRating    Float    @map("overall_rating") // Вычисляемое поле
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Связи
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId], name: "unique_user_anime")
+  @@map("ratings")
+}
+
+// Модель комментариев
+model Comment {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  animeId   Int      @map("anime_id")
+  comment   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Связи
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime Anime         @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  likes CommentLike[]
+
+  @@map("comments")
+}
+
+// Модель лайков комментариев
+model CommentLike {
+  id        Int         @id @default(autoincrement())
+  userId    Int         @map("user_id")
+  commentId Int         @map("comment_id")
+  likeType  LikeType    @map("like_type")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  // Связи
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId], name: "unique_user_comment")
+  @@map("comment_likes")
+}
+
+// Перечисление типов лайков
+enum LikeType {
+  LIKE    @map("like")
+  DISLIKE @map("dislike")
+}
+
+// Модель статусов аниме пользователей
+model UserAnimeStatus {
+  id        Int         @id @default(autoincrement())
+  userId    Int         @map("user_id")
+  animeId   Int         @map("anime_id")
+  status    AnimeStatus
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  // Связи
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId], name: "unique_user_anime_status")
+  @@map("user_anime_status")
+}
+
+// Перечисление статусов аниме
+enum AnimeStatus {
+  PLANNED   @map("planned")   // Запланировано
+  WATCHING  @map("watching")  // Смотрю
+  COMPLETED @map("completed") // Завершено
+  DROPPED   @map("dropped")   // Брошено
+}
+
+// Модель попыток входа и блокировок
+model LoginAttempt {
+  id             Int       @id @default(autoincrement())
+  username       String
+  ipAddress      String    @map("ip_address")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lastAttempt    DateTime  @default(now()) @updatedAt @map("last_attempt")
+  blockedUntil   DateTime? @map("blocked_until")
+  blockLevel     Int       @default(0) @map("block_level")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Связи (опционально для отслеживания)
+  user User? @relation(fields: [username], references: [username])
+
+  @@index([username])
+  @@index([blockedUntil])
+  @@map("login_attempts")
+}
