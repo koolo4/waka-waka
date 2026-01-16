@@ -82,9 +82,9 @@ async function generateRecommendations(userId: number) {
   const similarGenreAnime = await prisma.anime.findMany({
     where: {
       id: { notIn: ratedAnimeIds },
-      genre: {
-        search: topGenres.join(' | ')
-      }
+      OR: topGenres.map(g => ({
+        genre: { contains: g, mode: 'insensitive' as const }
+      }))
     },
     select: {
       id: true,
@@ -107,10 +107,10 @@ async function generateRecommendations(userId: number) {
     _count: { id: true }
   })
 
-  const statsMap = new Map(
+  const statsMap = new Map<number, { avgRating: number; count: number }>(
     animeStats.map(s => [
       s.animeId,
-      { avgRating: s._avg.overallRating || 0, count: s._count }
+      { avgRating: s._avg.overallRating || 0, count: (s._count.id as unknown) as number }
     ])
   )
 
@@ -121,8 +121,8 @@ async function generateRecommendations(userId: number) {
   friendRatings.forEach(rating => {
     const baseScore = 40 + (rating.overallRating - 5) * 5 // 40-70
     const stats = statsMap.get(rating.anime.id)
-    const popularityBonus = Math.min(20, (stats?.count || 0) / 10) // Бонус за популярность
-    const ratingBonus = (stats?.avgRating || 0) / 10 * 10 // Бонус за средний рейтинг
+    const popularityBonus = Math.min(20, Math.max(0, (stats?.count ?? 0) / 10)) // Бонус за популярность
+    const ratingBonus = Math.max(0, (stats?.avgRating ?? 0) / 10 * 10) // Бонус за средний рейтинг
 
     const totalScore = baseScore + popularityBonus + ratingBonus
 
@@ -142,8 +142,8 @@ async function generateRecommendations(userId: number) {
   similarGenreAnime.forEach(anime => {
     const baseScore = 25
     const stats = statsMap.get(anime.id)
-    const popularityBonus = Math.min(15, (stats?.count || 0) / 15)
-    const ratingBonus = (stats?.avgRating || 0) / 10 * 8
+    const popularityBonus = Math.min(15, Math.max(0, (stats?.count ?? 0) / 15))
+    const ratingBonus = Math.max(0, (stats?.avgRating ?? 0) / 10 * 8)
 
     const totalScore = baseScore + popularityBonus + ratingBonus
 
