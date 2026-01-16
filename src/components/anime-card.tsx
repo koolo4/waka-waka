@@ -106,6 +106,8 @@ export function AnimeCard(props: AnimeCardProps) {
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
                   sizes="96px"
+                  loading="lazy"
+                  quality={75}
                   onError={() => setImageError(true)}
                 />
               ) : (

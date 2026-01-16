@@ -78,6 +78,8 @@ model Rating {
   anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, animeId], name: "unique_user_anime")
+  @@index([animeId])
+  @@index([userId])
   @@map("ratings")
 }
 
@@ -94,6 +96,9 @@ model Comment {
   anime Anime         @relation(fields: [animeId], references: [id], onDelete: Cascade)
   likes CommentLike[]
 
+  @@index([animeId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("comments")
 }
 
@@ -133,6 +138,8 @@ model UserAnimeStatus {
   anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, animeId], name: "unique_user_anime_status")
+  @@index([userId])
+  @@index([animeId])
   @@map("user_anime_status")
 }
 

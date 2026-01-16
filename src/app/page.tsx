@@ -4,37 +4,69 @@ import { AnimeSearchFilter } from '@/components/anime-search-filter'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, TrendingUp, Users, Film, MessageCircle, Zap, Activity, Database } from 'lucide-react'
+import { revalidateTag } from 'next/cache'
 
-async function getAnimeWithStats() {
-  const anime = await prisma.anime.findMany({
-    include: {
-      ratings: true,
-      comments: true,
-      userStatuses: true,
-      creator: {
-        select: {
-          username: true
+async function getAnimeWithStats(page = 1, limit = 12) {
+  const skip = (page - 1) * limit
+  
+  const [anime, total] = await Promise.all([
+    prisma.anime.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        genre: true,
+        year: true,
+        imageUrl: true,
+        createdAt: true,
+        creator: {
+          select: {
+            username: true
+          }
+        },
+        _count: {
+          select: {
+            ratings: true,
+            comments: true,
+            userStatuses: true
+          }
         }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
+    }),
+    prisma.anime.count()
+  ])
+
+  // Получаем средние рейтинги для этих аниме
+  const animeIds = anime.map(a => a.id)
+  const ratingStats = await prisma.rating.groupBy({
+    by: ['animeId'],
+    where: { animeId: { in: animeIds } },
+    _avg: {
+      overallRating: true
     }
   })
 
-  return anime.map(item => {
-    const averageRating = item.ratings.length > 0
-      ? item.ratings.reduce((acc, rating) => acc + rating.overallRating, 0) / item.ratings.length
-      : 0
+  const ratingsMap = new Map(
+    ratingStats.map(r => [r.animeId, r._avg.overallRating || 0])
+  )
 
-    return {
+  return {
+    anime: anime.map(item => ({
       ...item,
-      averageRating,
-      ratingsCount: item.ratings.length,
-      commentsCount: item.comments.length,
-      viewsCount: item.userStatuses.length
-    }
-  })
+      averageRating: ratingsMap.get(item.id) || 0,
+      ratingsCount: item._count.ratings,
+      commentsCount: item._count.comments,
+      viewsCount: item._count.userStatuses
+    })),
+    total,
+    pages: Math.ceil(total / limit),
+    currentPage: page
+  }
 }
 
 async function getStats() {
@@ -170,7 +202,7 @@ export default async function HomePage() {
 
           {/* Enhanced Search Filter */}
           <div className="cyber-card p-6 mb-8">
-            <AnimeSearchFilter initialAnime={animeList} />
+            <AnimeSearchFilter initialAnime={animeList.anime} />
           </div>
         </div>
 

@@ -12,42 +12,25 @@ import { AnimeVideoPlayer } from '@/components/anime-video-player'
 async function getAnimeById(id: number) {
   const anime = await prisma.anime.findUnique({
     where: { id },
-    include: {
-      ratings: {
-        include: {
-          user: {
-            select: {
-              username: true,
-              avatar: true
-            }
-          }
-        }
-      },
-      comments: {
-        include: {
-          user: {
-            select: {
-              username: true,
-              avatar: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      },
-      userStatuses: {
-        include: {
-          user: {
-            select: {
-              username: true
-            }
-          }
-        }
-      },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      genre: true,
+      year: true,
+      studio: true,
+      imageUrl: true,
+      createdAt: true,
       creator: {
         select: {
           username: true
+        }
+      },
+      _count: {
+        select: {
+          ratings: true,
+          comments: true,
+          userStatuses: true
         }
       }
     }
@@ -55,29 +38,28 @@ async function getAnimeById(id: number) {
 
   if (!anime) return null
 
-  const averageRating = anime.ratings.length > 0
-    ? anime.ratings.reduce((acc, rating) => acc + rating.overallRating, 0) / anime.ratings.length
-    : 0
-
-  const averageRatings = {
-    story: anime.ratings.length > 0
-      ? anime.ratings.reduce((acc, rating) => acc + rating.storyRating, 0) / anime.ratings.length
-      : 0,
-    art: anime.ratings.length > 0
-      ? anime.ratings.reduce((acc, rating) => acc + rating.artRating, 0) / anime.ratings.length
-      : 0,
-    characters: anime.ratings.length > 0
-      ? anime.ratings.reduce((acc, rating) => acc + rating.charactersRating, 0) / anime.ratings.length
-      : 0,
-    sound: anime.ratings.length > 0
-      ? anime.ratings.reduce((acc, rating) => acc + rating.soundRating, 0) / anime.ratings.length
-      : 0,
-  }
+  // Получаем только статистику, не все данные
+  const ratingStats = await prisma.rating.aggregate({
+    where: { animeId: id },
+    _avg: {
+      overallRating: true,
+      storyRating: true,
+      artRating: true,
+      charactersRating: true,
+      soundRating: true
+    }
+  })
 
   return {
     ...anime,
-    averageRating,
-    averageRatings
+    averageRating: ratingStats._avg.overallRating || 0,
+    averageRatings: {
+      story: ratingStats._avg.storyRating || 0,
+      art: ratingStats._avg.artRating || 0,
+      characters: ratingStats._avg.charactersRating || 0,
+      sound: ratingStats._avg.soundRating || 0
+    },
+    userStatuses: { length: anime._count.userStatuses }
   }
 }
 

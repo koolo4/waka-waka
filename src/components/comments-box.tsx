@@ -36,14 +36,19 @@ export function CommentsBox({ animeId }: Props) {
   const [error, setError] = useState('')
   const [input, setInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
 
-  const loadComments = async () => {
+  const loadComments = async (pageNum = 1) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/anime/${animeId}/comments`)
+      const res = await fetch(`/api/anime/${animeId}/comments?page=${pageNum}&limit=10`)
       const data = await res.json()
       if (res.ok) {
         setComments(data.comments || [])
+        setTotal(data.pagination?.total || 0)
+        setHasMore((data.pagination?.page || 1) < (data.pagination?.pages || 1))
       }
     } catch (e) {
       console.error(e)
@@ -53,9 +58,9 @@ export function CommentsBox({ animeId }: Props) {
   }
 
   useEffect(() => {
-    loadComments()
+    loadComments(page)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animeId, session?.user?.id])
+  }, [animeId, session?.user?.id, page])
 
   const submitComment = async () => {
     if (!session) return
@@ -203,6 +208,15 @@ export function CommentsBox({ animeId }: Props) {
                 </div>
               )
             })}
+            {hasMore && (
+              <Button
+                onClick={() => setPage(prev => prev + 1)}
+                variant="outline"
+                className="w-full"
+              >
+                Загрузить ещё ({total - comments.length} осталось)
+              </Button>
+            )}
           </div>
         ) : (
           <div className="text-center py-8">
