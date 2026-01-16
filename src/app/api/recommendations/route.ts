@@ -5,27 +5,33 @@ import { prisma } from '@/lib/prisma'
 
 // Функция для расчета рекомендаций
 async function generateRecommendations(userId: number) {
-  // 1. Получаем оценки пользователя
+  // 1. Получаем оценки пользователя и его предпочтения
   const userRatings = await prisma.rating.findMany({
     where: { userId },
     include: {
       anime: {
         select: {
           id: true,
-          genre: true
+          genre: true,
+          title: true
         }
       }
     }
   })
 
   const ratedAnimeIds = userRatings.map(r => r.anime.id)
-  const userGenres = new Set<string>()
+  const userGenres = new Map<string, number>()
+  const avgUserRating = userRatings.length > 0 
+    ? userRatings.reduce((sum, r) => sum + r.overallRating, 0) / userRatings.length
+    : 5
 
-  // Собираем жанры из оценённого аниме
+  // Собираем жанры из оценённого аниме с весами
   userRatings.forEach(rating => {
     if (rating.anime.genre) {
       rating.anime.genre.split(',').forEach(g => {
-        userGenres.add(g.trim())
+        const genre = g.trim()
+        const weight = rating.overallRating / 10 // Высокооценённые аниме имеют больше веса
+        userGenres.set(genre, (userGenres.get(genre) || 0) + weight)
       })
     }
   })
@@ -64,80 +70,118 @@ async function generateRecommendations(userId: number) {
         }
       }
     },
-    take: 50
+    take: 100
   })
 
   // 3. Получаем аниме с похожими жанрами
-  const genreQuery = Array.from(userGenres).join('|')
+  const topGenres = Array.from(userGenres.entries())
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([g]) => g)
+
   const similarGenreAnime = await prisma.anime.findMany({
     where: {
-      AND: [
-        { genre: { search: Array.from(userGenres).join(' | ') } },
-        { id: { notIn: ratedAnimeIds } }
-      ]
+      id: { notIn: ratedAnimeIds },
+      genre: {
+        search: topGenres.join(' | ')
+      }
     },
     select: {
       id: true,
-      title: true
+      title: true,
+      genre: true
     },
-    take: 50
+    take: 100
   })
 
-  // 4. Создаём рекомендации
-  const recommendations: any[] = []
+  // 4. Получаем статистику аниме для учёта популярности
+  const allAnimeToScore = new Set([
+    ...friendRatings.map(r => r.anime.id),
+    ...similarGenreAnime.map(a => a.id)
+  ])
+
+  const animeStats = await prisma.rating.groupBy({
+    by: ['animeId'],
+    where: { animeId: { in: Array.from(allAnimeToScore) } },
+    _avg: { overallRating: true },
+    _count: { id: true }
+  })
+
+  const statsMap = new Map(
+    animeStats.map(s => [
+      s.animeId,
+      { avgRating: s._avg.overallRating || 0, count: s._count }
+    ])
+  )
+
+  // 5. Создаём рекомендации с улучшенным скорингом
+  const recommendations = new Map<number, any>()
 
   // Рекомендации от друзей
   friendRatings.forEach(rating => {
-    const existingIndex = recommendations.findIndex(
-      r => r.animeId === rating.animeId
-    )
+    const baseScore = 40 + (rating.overallRating - 5) * 5 // 40-70
+    const stats = statsMap.get(rating.anime.id)
+    const popularityBonus = Math.min(20, (stats?.count || 0) / 10) // Бонус за популярность
+    const ratingBonus = (stats?.avgRating || 0) / 10 * 10 // Бонус за средний рейтинг
 
-    if (existingIndex >= 0) {
-      recommendations[existingIndex].score += 30
-      recommendations[existingIndex].reasons.push('friend_rating')
+    const totalScore = baseScore + popularityBonus + ratingBonus
+
+    if (recommendations.has(rating.anime.id)) {
+      recommendations.get(rating.anime.id).score += totalScore
+      recommendations.get(rating.anime.id).reasons.add('friend_rating')
     } else {
-      recommendations.push({
+      recommendations.set(rating.anime.id, {
         animeId: rating.anime.id,
-        score: 30 + (rating.overallRating - 5),
-        reasons: ['friend_rating']
+        score: totalScore,
+        reasons: new Set(['friend_rating'])
       })
     }
   })
 
   // Рекомендации по жанрам
   similarGenreAnime.forEach(anime => {
-    const existingIndex = recommendations.findIndex(
-      r => r.animeId === anime.id
-    )
+    const baseScore = 25
+    const stats = statsMap.get(anime.id)
+    const popularityBonus = Math.min(15, (stats?.count || 0) / 15)
+    const ratingBonus = (stats?.avgRating || 0) / 10 * 8
 
-    if (existingIndex >= 0) {
-      recommendations[existingIndex].score += 25
-      recommendations[existingIndex].reasons.push('genre')
+    const totalScore = baseScore + popularityBonus + ratingBonus
+
+    if (recommendations.has(anime.id)) {
+      const existing = recommendations.get(anime.id)
+      existing.score += totalScore
+      existing.reasons.add('genre')
     } else {
-      recommendations.push({
+      recommendations.set(anime.id, {
         animeId: anime.id,
-        score: 25,
-        reasons: ['genre']
+        score: totalScore,
+        reasons: new Set(['genre'])
       })
     }
   })
 
-  // Сортируем по релевантности и сохраняем
-  recommendations.sort((a, b) => b.score - a.score)
+  // Сортируем по релевантности и нормализуем оценки
+  const sortedRecs = Array.from(recommendations.values())
+    .sort((a, b) => b.score - a.score)
+    .map(rec => ({
+      ...rec,
+      score: Math.min(100, Math.round((rec.score / 100) * 100)), // Нормализуем 0-100
+      reasons: Array.from(rec.reasons)
+    }))
 
   // Удаляем старые рекомендации
   await prisma.recommendation.deleteMany({
     where: { userId }
   })
 
-  // Сохраняем новые (топ 20)
-  for (const rec of recommendations.slice(0, 20)) {
+  // Сохраняем новые (топ 25)
+  for (const rec of sortedRecs.slice(0, 25)) {
     await prisma.recommendation.create({
       data: {
         userId,
         animeId: rec.animeId,
         reason: rec.reasons.join(', '),
-        score: Math.min(100, rec.score)
+        score: rec.score
       }
     })
   }
