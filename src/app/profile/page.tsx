@@ -29,6 +29,7 @@ import { AvatarUploader } from '@/components/avatar-uploader'
 import { UserAnimeLists } from '@/components/user-anime-lists'
 import { UserStatsDashboard } from '@/components/user-stats-dashboard'
 import { FriendsClient } from '@/components/friends-client'
+import { FriendActivityFeed } from '@/components/friend-activity-feed'
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions)
@@ -307,20 +308,7 @@ export default async function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
-            <Card className="cyber-card">
-              <CardHeader>
-                <CardTitle className="neon-text-green">ЖУРНАЛ АКТИВНОСТИ</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Zap className="h-16 w-16 neon-text-magenta mx-auto mb-4 animate-pulse" />
-                  <h3 className="text-xl font-bold mb-2 neon-text">МОДУЛЬ В РАЗРАБОТКЕ</h3>
-                  <p className="text-muted-foreground">
-                    Система отслеживания активности будет доступна в следующем обновлении
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <FriendActivityFeed />
           </TabsContent>
         </Tabs>
 
