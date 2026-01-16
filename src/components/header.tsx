@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sun, Moon, User, LogOut, UserCog, Zap, Terminal, Shield } from "lucide-react"
+import { Sun, Moon, User, LogOut, UserCog, Zap, Terminal, Shield, Sparkles, Users } from "lucide-react"
 
 export function Header() {
   const { data: session } = useSession()
@@ -39,6 +39,13 @@ export function Header() {
         <nav className="flex items-center space-x-4">
           {session ? (
             <>
+              <Button className="cyber-button border-cyan-500/50 text-cyan-400 hover:border-cyan-400 hover:text-cyan-300" asChild>
+                <Link href="/recommendations" className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Рекомендации
+                </Link>
+              </Button>
+
               {isAdmin && (
                 <Button className="cyber-button border-green-500/50 text-green-400 hover:border-green-400 hover:text-green-300" asChild>
                   <Link href="/admin/add-anime" className="flex items-center gap-2">
@@ -79,6 +86,13 @@ export function Header() {
                     <Link href="/profile" className="flex items-center py-3 px-4">
                       <User className="mr-3 h-4 w-4 text-cyan-400" />
                       <span className="font-mono">Профиль пользователя</span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild className="hover:bg-cyan-500/10 focus:bg-cyan-500/10 my-1">
+                    <Link href="/profile" className="flex items-center py-3 px-4">
+                      <Users className="mr-3 h-4 w-4 text-cyan-400" />
+                      <span className="font-mono">Друзья и запросы</span>
                     </Link>
                   </DropdownMenuItem>
 

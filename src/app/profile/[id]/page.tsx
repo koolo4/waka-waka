@@ -4,40 +4,42 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import {
   Film,
   Star,
   MessageCircle,
   Trophy,
-  Clock,
-  Eye,
   User,
-  Activity,
-  Target,
   Shield,
   Calendar,
   TrendingUp,
   BarChart3,
-  Zap,
-  Crown,
-  Users as UsersIcon
+  Users as UsersIcon,
+  UserPlus,
+  UserX,
+  Clock
 } from 'lucide-react'
-import { AvatarUploader } from '@/components/avatar-uploader'
 import { UserAnimeLists } from '@/components/user-anime-lists'
 import { UserStatsDashboard } from '@/components/user-stats-dashboard'
-import { FriendsClient } from '@/components/friends-client'
 
-export default async function ProfilePage() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    redirect('/auth/signin')
+interface PageProps {
+  params: {
+    id: string
   }
-  const userId = parseInt(session.user.id)
+}
 
-  const [user, ratingsCount, commentsCount, statuses, averageRating, favoriteGenres] = await Promise.all([
+export default async function UserProfilePage({ params }: PageProps) {
+  const session = await getServerSession(authOptions)
+  const userId = parseInt(params.id)
+
+  if (isNaN(userId)) {
+    notFound()
+  }
+
+  const [user, ratingsCount, commentsCount, statuses, averageRating, favoriteGenres, friendStatus, currentUserId] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, username: true, email: true, avatar: true, role: true, createdAt: true }
@@ -49,12 +51,10 @@ export default async function ProfilePage() {
       where: { userId },
       _count: { status: true },
     }),
-    // Средний рейтинг пользователя
     prisma.rating.aggregate({
       where: { userId },
       _avg: { overallRating: true }
     }),
-    // Любимые жанры на основе высоких оценок
     prisma.rating.findMany({
       where: {
         userId,
@@ -64,15 +64,27 @@ export default async function ProfilePage() {
         anime: { select: { genre: true } }
       },
       take: 10
-    })
+    }),
+    session?.user?.id ? prisma.friend.findFirst({
+      where: {
+        OR: [
+          { senderId: parseInt(session.user.id), receiverId: userId },
+          { senderId: userId, receiverId: parseInt(session.user.id) }
+        ]
+      }
+    }) : null,
+    session?.user?.id ? parseInt(session.user.id) : null
   ])
+
+  if (!user) {
+    notFound()
+  }
 
   const statusMap: Record<string, number> = { PLANNED: 0, WATCHING: 0, COMPLETED: 0, DROPPED: 0 }
   for (const s of statuses) {
     statusMap[s.status] = s._count.status
   }
 
-  // Обработка любимых жанров
   const genreCount: Record<string, number> = {}
   favoriteGenres.forEach(rating => {
     if (rating.anime.genre) {
@@ -87,9 +99,16 @@ export default async function ProfilePage() {
     .slice(0, 3)
     .map(([genre]) => genre)
 
-  const memberSince = user?.createdAt ? new Date(user.createdAt).getFullYear() : 'Неизвестно'
-  const isAdmin = user?.role === 'ADMIN'
+  const memberSince = user.createdAt ? new Date(user.createdAt).getFullYear() : 'Неизвестно'
+  const isAdmin = user.role === 'ADMIN'
   const totalAnime = statusMap.WATCHING + statusMap.PLANNED + statusMap.COMPLETED + statusMap.DROPPED
+  const isSelf = currentUserId === userId
+  
+  const friendStatusText = friendStatus ? (
+    friendStatus.status === 'ACCEPTED' ? 'В друзьях' :
+    friendStatus.senderId === currentUserId ? 'Запрос отправлен' :
+    'Входящий запрос'
+  ) : 'Не в друзьях'
 
   return (
     <div className="min-h-screen relative">
@@ -102,24 +121,98 @@ export default async function ProfilePage() {
         <div className="text-center mb-8">
           <div className="cyber-badge inline-flex items-center gap-2 mb-4">
             <User className="h-4 w-4" />
-            <span>USER PROFILE ACCESS</span>
+            <span>USER PROFILE SCAN</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-4 neon-text">
-            ЛИЧНЫЙ ТЕРМИНАЛ
+            {user.username.toUpperCase()}
           </h1>
         </div>
 
         {/* Main Profile Card */}
         <Card className="cyber-card mb-8">
           <CardHeader className="border-b border-cyan-500/20">
-            <div className="flex items-center gap-3">
-              <Shield className={`h-6 w-6 ${isAdmin ? 'text-yellow-400' : 'text-cyan-400'}`} />
-              <CardTitle className="neon-text-green">ПРОФИЛЬ ОПЕРАТОРА</CardTitle>
-              {isAdmin && (
-                <Badge className="cyber-badge bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50 text-yellow-400">
-                  <Crown className="h-3 w-3 mr-1" />
-                  ADMIN ACCESS
-                </Badge>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Shield className={`h-6 w-6 ${isAdmin ? 'text-yellow-400' : 'text-cyan-400'}`} />
+                <CardTitle className="neon-text-green">ПРОФИЛЬ ОПЕРАТОРА</CardTitle>
+                {isAdmin && (
+                  <Badge className="cyber-badge bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50 text-yellow-400">
+                    ADMIN
+                  </Badge>
+                )}
+              </div>
+              {currentUserId && !isSelf && (
+                <div className="flex items-center gap-2">
+                  {friendStatus?.status === 'ACCEPTED' ? (
+                    <>
+                      <Badge className="cyber-badge bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/50 text-green-400">
+                        ✓ В ДРУЗЬЯХ
+                      </Badge>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="cyber-button border-red-500/50 text-red-400 hover:border-red-400"
+                        onClick={async () => {
+                          await fetch(`/api/friends/${userId}`, { method: 'DELETE' })
+                          window.location.reload()
+                        }}
+                      >
+                        <UserX className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : friendStatus?.senderId === currentUserId ? (
+                    <Badge className="cyber-badge bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border-orange-500/50 text-orange-400">
+                      ⏳ ЗАПРОС ОТПРАВЛЕН
+                    </Badge>
+                  ) : friendStatus?.receiverId === currentUserId ? (
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm"
+                        className="cyber-button border-green-500/50 text-green-400 hover:border-green-400"
+                        onClick={async () => {
+                          await fetch(`/api/friends/${userId}`, { 
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'accept' })
+                          })
+                          window.location.reload()
+                        }}
+                      >
+                        Принять
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="cyber-button border-red-500/50 text-red-400 hover:border-red-400"
+                        onClick={async () => {
+                          await fetch(`/api/friends/${userId}`, { 
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'reject' })
+                          })
+                          window.location.reload()
+                        }}
+                      >
+                        Отклонить
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      className="cyber-button border-cyan-500/50 text-cyan-400 hover:border-cyan-400"
+                      onClick={async () => {
+                        await fetch('/api/friends', { 
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ receiverId: userId })
+                        })
+                        window.location.reload()
+                      }}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Добавить в друзья
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </CardHeader>
@@ -135,54 +228,31 @@ export default async function ProfilePage() {
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 border-r-2 border-b-2 border-cyan-500/70"></div>
 
                   <Avatar className="h-40 w-40 border-4 border-cyan-500/50 shadow-2xl shadow-cyan-500/20">
-                    <AvatarImage src={user?.avatar || undefined} />
+                    <AvatarImage src={user.avatar || undefined} />
                     <AvatarFallback className="text-4xl bg-gradient-to-br from-cyan-900 to-magenta-900 text-cyan-300 font-mono font-bold">
-                      {user?.username?.charAt(0).toUpperCase()}
+                      {user.username.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
 
                   {/* Status indicator */}
                   <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full animate-pulse border-4 border-card shadow-lg shadow-green-500/50"></div>
                 </div>
-
-                <AvatarUploader />
-
-                {/* Connection status */}
-                <div className="cyber-badge">
-                  <Activity className="h-4 w-4 animate-pulse" />
-                  <span>ONLINE</span>
-                </div>
               </div>
 
               {/* User Info */}
               <div className="flex-1 space-y-6">
                 <div>
-                  <div className="text-4xl font-black neon-text mb-2 font-mono">{user?.username}</div>
-                  <div className="text-lg text-muted-foreground font-mono mb-4">{user?.email}</div>
+                  <div className="text-3xl font-black neon-text mb-2 font-mono">{user.username}</div>
+                  <div className="text-lg text-muted-foreground font-mono mb-4">{user.email}</div>
 
                   <div className="flex flex-wrap items-center gap-3">
                     <Badge className={`cyber-badge ${isAdmin ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50 text-yellow-400' : 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/50 text-cyan-400'}`}>
-                      {isAdmin ? (
-                        <>
-                          <Shield className="h-3 w-3 mr-1" />
-                          АДМИНИСТРАТОР
-                        </>
-                      ) : (
-                        <>
-                          <User className="h-3 w-3 mr-1" />
-                          ПОЛЬЗОВАТЕЛЬ
-                        </>
-                      )}
+                      {isAdmin ? 'АДМИНИСТРАТОР' : 'ПОЛЬЗОВАТЕЛЬ'}
                     </Badge>
 
                     <Badge className="cyber-badge bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/50 text-green-400">
                       <Calendar className="h-3 w-3 mr-1" />
                       С {memberSince} ГОДА
-                    </Badge>
-
-                    <Badge className="cyber-badge bg-gradient-to-r from-purple-500/20 to-violet-500/20 border-purple-500/50 text-purple-400">
-                      <Target className="h-3 w-3 mr-1" />
-                      УРОВЕНЬ 15
                     </Badge>
                   </div>
                 </div>
@@ -273,56 +343,15 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Tabs Section */}
-        <Tabs defaultValue="lists" className="space-y-6">
-          <TabsList className="cyber-card bg-card/50 backdrop-blur-sm border border-cyan-500/30">
-            <TabsTrigger value="lists" className="cyber-button">
-              <Film className="h-4 w-4 mr-2" />
-              Мои Списки
-            </TabsTrigger>
-            <TabsTrigger value="friends" className="cyber-button">
-              <UsersIcon className="h-4 w-4 mr-2" />
-              Друзья
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="cyber-button">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Статистика
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="cyber-button">
-              <Activity className="h-4 w-4 mr-2" />
-              Активность
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="lists" className="space-y-6">
-            <UserAnimeLists userId={userId} />
-          </TabsContent>
-
-          <TabsContent value="friends" className="space-y-6">
-            <FriendsClient userId={userId} />
-          </TabsContent>
-
-          <TabsContent value="stats" className="space-y-6">
-            <UserStatsDashboard userId={userId} username={user?.username || ''} />
-          </TabsContent>
-
-          <TabsContent value="activity" className="space-y-6">
-            <Card className="cyber-card">
-              <CardHeader>
-                <CardTitle className="neon-text-green">ЖУРНАЛ АКТИВНОСТИ</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Zap className="h-16 w-16 neon-text-magenta mx-auto mb-4 animate-pulse" />
-                  <h3 className="text-xl font-bold mb-2 neon-text">МОДУЛЬ В РАЗРАБОТКЕ</h3>
-                  <p className="text-muted-foreground">
-                    Система отслеживания активности будет доступна в следующем обновлении
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Anime Lists */}
+        <div className="space-y-6">
+          <Card className="cyber-card">
+            <CardHeader className="border-b border-cyan-500/20">
+              <CardTitle className="neon-text-green">БИБЛИОТЕКА АНИМЕ</CardTitle>
+            </CardHeader>
+          </Card>
+          <UserAnimeLists userId={userId} />
+        </div>
 
         {/* Navigation */}
         <div className="mt-8 text-center">
