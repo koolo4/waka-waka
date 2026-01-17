@@ -55,6 +55,26 @@ const getGradientForAnime = (id: number) => {
   return cyberpunkGradients[id % cyberpunkGradients.length]
 }
 
+// Get optimal image URL (use proxy for external sources)
+const getOptimalImageUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null
+  
+  // If it's from MyAnimeList or AniList, use proxy to avoid CORS/User-Agent issues
+  if (url.includes('cdn.myanimelist.net') || 
+      url.includes('api.myanimelist.net') ||
+      url.includes('cdn.anilist.co') ||
+      url.includes('s4.anilist.co') ||
+      url.includes('s.anilist.co')) {
+    try {
+      return `/api/images/proxy?url=${encodeURIComponent(url)}`
+    } catch (e) {
+      return url
+    }
+  }
+  
+  return url
+}
+
 export function AnimeCard(props: AnimeCardProps) {
   const [imageError, setImageError] = useState(false)
 
@@ -101,7 +121,7 @@ export function AnimeCard(props: AnimeCardProps) {
             <div className="relative w-24 h-32 flex-shrink-0 rounded-lg overflow-hidden">
               {imageUrl && !imageError ? (
                 <Image
-                  src={imageUrl}
+                  src={getOptimalImageUrl(imageUrl) || imageUrl}
                   alt={title}
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -225,7 +245,7 @@ export function AnimeCard(props: AnimeCardProps) {
   // Grid view (оригинальный код)
   return (
     <Link href={`/anime/${id}`}>
-      <Card className="cyber-card group h-full flex flex-col overflow-hidden relative transform hover:scale-105 transition-all duration-500 border-2 border-transparent hover:border-cyan-500/50">
+      <Card className="cyber-card group h-full flex flex-col overflow-hidden relative transform hover:scale-105 transition-all duration-500 border-2 border-transparent hover:border-cyan-500/50 cursor-pointer">
         {/* Энергетический эффект */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-magenta-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"></div>
 
@@ -238,7 +258,7 @@ export function AnimeCard(props: AnimeCardProps) {
           <div className="aspect-[3/4] relative overflow-hidden rounded-t-lg border-b border-cyan-500/20">
             {imageUrl && !imageError ? (
               <Image
-                src={imageUrl}
+                src={getOptimalImageUrl(imageUrl) || imageUrl}
                 alt={title}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700 filter group-hover:brightness-110 group-hover:contrast-110"
@@ -282,6 +302,8 @@ export function AnimeCard(props: AnimeCardProps) {
                 <Play className="w-8 h-8 text-black fill-black ml-1" />
               </div>
             </div>
+
+            {/* Quick Preview */}
 
             {/* Рейтинг */}
             {averageRating > 0 && (

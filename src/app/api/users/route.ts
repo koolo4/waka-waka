@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
         id: { not: userId },
         ...(search && {
           OR: [
-            { username: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } }
+            { username: { contains: search } },
+            { email: { contains: search } }
           ]
         })
       },

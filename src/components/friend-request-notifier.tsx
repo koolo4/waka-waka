@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
-import { Badge } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 export function FriendRequestNotifier() {
   const [pendingCount, setPendingCount] = useState(0)

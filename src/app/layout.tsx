@@ -5,6 +5,7 @@ import ClientBody from "./ClientBody";
 import Script from "next/script";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
+import { LiveNotificationCenter } from "@/components/live-notification-center";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "waka-waka - Мир аниме",
-  description: "Открывайте новые аниме, делитесь мнениями и находите единомышленников",
+  title: "WAKA-WAKA ANIME - Киберпанк Аниме Платформа",
+  description: "Погрузитесь в неоновый мир аниме будущего с киберпанк дизайном",
 };
 
 export default function RootLayout({
@@ -38,6 +39,7 @@ export default function RootLayout({
         <Providers>
           <Header />
           <ClientBody>{children}</ClientBody>
+          <LiveNotificationCenter maxNotifications={5} />
         </Providers>
       </body>
     </html>

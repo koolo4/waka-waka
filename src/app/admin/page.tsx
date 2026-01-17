@@ -14,7 +14,8 @@ import {
   Edit,
   Trash2,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Download
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
@@ -119,11 +120,19 @@ export default async function AdminPage() {
               Управление контентом и пользователями платформы Waka-Waka Anime
             </p>
           </div>
-          <Link href="/">
-            <Button variant="outline">
-              ← Вернуться на главную
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/admin/anime/import">
+              <Button className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700">
+                <Download className="h-4 w-4" />
+                Import Anime
+              </Button>
+            </Link>
+            <Link href="/">
+              <Button variant="outline">
+                ← Вернуться на главную
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Статистика */}

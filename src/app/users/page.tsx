@@ -64,7 +64,7 @@ export default function UsersPage() {
       const res = await fetch('/api/friends', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiverId: userId })
+        body: JSON.stringify({ targetUserId: userId })
       })
       if (res.ok) {
         // Обновляем статус пользователя локально

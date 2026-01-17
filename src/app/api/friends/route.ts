@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { notifyFriendRequest } from '@/lib/notifications'
+import { sendNotificationViaWebSocket } from '@/lib/socket-io-server'
 
 // GET - получить всех друзей и запросы
 export async function GET(request: NextRequest) {
@@ -134,6 +136,39 @@ export async function POST(request: NextRequest) {
         receiver: { select: { username: true, avatar: true } }
       }
     })
+
+    // Отправляем уведомление получателю
+    const sender = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true }
+    })
+
+    if (sender) {
+      // Создаем уведомление в БД
+      const notification = await prisma.notification.create({
+        data: {
+          userId: targetUserId,
+          type: 'friend_request',
+          title: `Новый запрос в друзья`,
+          message: `${sender.username} отправил вам запрос в друзья`,
+          relatedId: userId
+        }
+      })
+
+      // Отправляем через WebSocket
+      sendNotificationViaWebSocket(targetUserId, {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        read: notification.read,
+        relatedId: notification.relatedId,
+        createdAt: notification.createdAt.toISOString()
+      })
+
+      // Также отправляем через старый метод для совместимости
+      await notifyFriendRequest(userId, targetUserId, sender.username)
+    }
 
     return NextResponse.json(friend)
   } catch (error) {

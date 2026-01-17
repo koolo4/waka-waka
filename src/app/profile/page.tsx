@@ -30,6 +30,9 @@ import { UserAnimeLists } from '@/components/user-anime-lists'
 import { UserStatsDashboard } from '@/components/user-stats-dashboard'
 import { FriendsClient } from '@/components/friends-client'
 import { FriendActivityFeed } from '@/components/friend-activity-feed'
+import { AchievementsDisplay } from '@/components/achievements-display'
+import { ActivityStreakDisplay } from '@/components/activity-streak-display'
+import { RecentlyWatchedSection } from '@/components/recently-watched-section'
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions)
@@ -281,6 +284,14 @@ export default async function ProfilePage() {
               <Film className="h-4 w-4 mr-2" />
               Мои Списки
             </TabsTrigger>
+            <TabsTrigger value="streak" className="cyber-button">
+              <Zap className="h-4 w-4 mr-2" />
+              Полоса
+            </TabsTrigger>
+            <TabsTrigger value="recently" className="cyber-button">
+              <Clock className="h-4 w-4 mr-2" />
+              Недавно
+            </TabsTrigger>
             <TabsTrigger value="friends" className="cyber-button">
               <UsersIcon className="h-4 w-4 mr-2" />
               Друзья
@@ -288,6 +299,10 @@ export default async function ProfilePage() {
             <TabsTrigger value="stats" className="cyber-button">
               <BarChart3 className="h-4 w-4 mr-2" />
               Статистика
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="cyber-button">
+              <Trophy className="h-4 w-4 mr-2" />
+              Достижения
             </TabsTrigger>
             <TabsTrigger value="activity" className="cyber-button">
               <Activity className="h-4 w-4 mr-2" />
@@ -299,12 +314,54 @@ export default async function ProfilePage() {
             <UserAnimeLists userId={userId} />
           </TabsContent>
 
+          <TabsContent value="streak" className="space-y-6">
+            <Card className="cyber-card">
+              <CardHeader className="border-b border-cyan-500/20">
+                <CardTitle className="neon-text-magenta flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-orange-400" />
+                  ПОЛОСА АКТИВНОСТИ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <ActivityStreakDisplay userId={userId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="recently" className="space-y-6">
+            <Card className="cyber-card">
+              <CardHeader className="border-b border-cyan-500/20">
+                <CardTitle className="neon-text-green flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-blue-400" />
+                  НЕДАВНО ПРОСМОТРЕННОЕ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <RecentlyWatchedSection userId={userId} limit={12} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="friends" className="space-y-6">
-            <FriendsClient userId={userId} />
+            <FriendsClient currentUserId={userId} />
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-6">
             <UserStatsDashboard userId={userId} username={user?.username || ''} />
+          </TabsContent>
+
+          <TabsContent value="achievements" className="space-y-6">
+            <Card className="cyber-card">
+              <CardHeader className="border-b border-cyan-500/20">
+                <CardTitle className="neon-text-green flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-400" />
+                  СИСТЕМА ДОСТИЖЕНИЙ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <AchievementsDisplay />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">

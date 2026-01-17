@@ -83,7 +83,7 @@ async function generateRecommendations(userId: number) {
     where: {
       id: { notIn: ratedAnimeIds },
       OR: topGenres.map(g => ({
-        genre: { contains: g, mode: 'insensitive' as const }
+        genre: { contains: g }
       }))
     },
     select: {

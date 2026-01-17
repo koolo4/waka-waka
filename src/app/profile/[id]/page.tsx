@@ -24,16 +24,18 @@ import {
 } from 'lucide-react'
 import { UserAnimeLists } from '@/components/user-anime-lists'
 import { UserStatsDashboard } from '@/components/user-stats-dashboard'
+import { ProfileFriendActions } from '@/components/profile-friend-actions'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function UserProfilePage({ params }: PageProps) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
-  const userId = parseInt(params.id)
+  const userId = parseInt(id)
 
   if (isNaN(userId)) {
     notFound()
@@ -143,75 +145,11 @@ export default async function UserProfilePage({ params }: PageProps) {
               </div>
               {currentUserId && !isSelf && (
                 <div className="flex items-center gap-2">
-                  {friendStatus?.status === 'ACCEPTED' ? (
-                    <>
-                      <Badge className="cyber-badge bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/50 text-green-400">
-                        ✓ В ДРУЗЬЯХ
-                      </Badge>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="cyber-button border-red-500/50 text-red-400 hover:border-red-400"
-                        onClick={async () => {
-                          await fetch(`/api/friends/${userId}`, { method: 'DELETE' })
-                          window.location.reload()
-                        }}
-                      >
-                        <UserX className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : friendStatus?.senderId === currentUserId ? (
-                    <Badge className="cyber-badge bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border-orange-500/50 text-orange-400">
-                      ⏳ ЗАПРОС ОТПРАВЛЕН
-                    </Badge>
-                  ) : friendStatus?.receiverId === currentUserId ? (
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm"
-                        className="cyber-button border-green-500/50 text-green-400 hover:border-green-400"
-                        onClick={async () => {
-                          await fetch(`/api/friends/${userId}`, { 
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'accept' })
-                          })
-                          window.location.reload()
-                        }}
-                      >
-                        Принять
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        className="cyber-button border-red-500/50 text-red-400 hover:border-red-400"
-                        onClick={async () => {
-                          await fetch(`/api/friends/${userId}`, { 
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'reject' })
-                          })
-                          window.location.reload()
-                        }}
-                      >
-                        Отклонить
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button 
-                      className="cyber-button border-cyan-500/50 text-cyan-400 hover:border-cyan-400"
-                      onClick={async () => {
-                        await fetch('/api/friends', { 
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ receiverId: userId })
-                        })
-                        window.location.reload()
-                      }}
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Добавить в друзья
-                    </Button>
-                  )}
+                  <ProfileFriendActions
+                    userId={userId}
+                    currentUserId={currentUserId}
+                    friendStatus={friendStatus}
+                  />
                 </div>
               )}
             </div>

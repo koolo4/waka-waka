@@ -35,6 +35,26 @@ model User {
   // Рекомендации
   recommendations  Recommendation[]
 
+  // Уведомления
+  notifications   Notification[]
+  
+  // История поиска
+  searchHistory   SearchHistory[]
+  
+  // Статистика
+  stats           UserStats?
+  
+  // Сообщения
+  sentMessages     Message[]     @relation("Sender")
+  receivedMessages Message[]     @relation("Recipient")
+  conversationsAsParticipant1 Conversation[] @relation("ConversationParticipant1")
+  conversationsAsParticipant2 Conversation[] @relation("ConversationParticipant2")
+  
+  // Достижения и полосы активности
+  achievements    UserAchievement[]
+  streak          ActivityStreak?
+  recentlyWatched RecentlyWatched[]
+
   @@map("users")
 }
 
@@ -54,9 +74,18 @@ model Anime {
   studio      String?
   imageUrl    String?  @map("image_url")
   trailerUrl  String?  @map("trailer_url")
+  youtubeTrailerId String? @map("youtube_trailer_id")  // YouTube video ID for easier embedding
   videoUrl    String?  @map("video_url")
   createdBy   Int?     @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at")
+  
+  // External API tracking
+  malId           Int?     @map("mal_id")
+  anilistId       Int?     @map("anilist_id")
+  externalSource  String?  @map("external_source") // 'myanimelist' or 'anilist'
+  externalRating  Float?   @map("external_rating")
+  externalPopularity Int? @map("external_popularity")
+  lastSyncedAt    DateTime? @map("last_synced_at")
 
   // Связи
   creator          User?             @relation("AnimeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -64,6 +93,7 @@ model Anime {
   comments         Comment[]
   userStatuses     UserAnimeStatus[]
   recommendations  Recommendation[]
+  recentlyWatched  RecentlyWatched[]
 
   @@map("anime")
 }
@@ -134,12 +164,19 @@ enum LikeType {
 
 // Модель статусов аниме пользователей
 model UserAnimeStatus {
-  id        Int         @id @default(autoincrement())
-  userId    Int         @map("user_id")
-  animeId   Int         @map("anime_id")
-  status    AnimeStatus
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+  id              Int         @id @default(autoincrement())
+  userId          Int         @map("user_id")
+  animeId         Int         @map("anime_id")
+  status          AnimeStatus
+  currentEpisode  Int         @default(0) @map("current_episode")    // На каком эпизоде остановился
+  totalEpisodes   Int         @default(0) @map("total_episodes")     // Всего эпизодов
+  watchPercentage Float       @default(0) @map("watch_percentage")   // Процент просмотра (0-100)
+  startDate       DateTime?   @map("start_date")                     // Когда начал смотреть
+  endDate         DateTime?   @map("end_date")                       // Когда закончил
+  isFavorite      Boolean     @default(false) @map("is_favorite")    // Избранное
+  notes           String?                                             // Личные заметки
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
 
   // Связи
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -222,4 +259,164 @@ model Recommendation {
   @@index([animeId])
   @@index([score])
   @@map("recommendations")
+}
+
+// Модель уведомлений
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  type      String   // friend_request, comment, rating, recommendation
+  title     String
+  message   String
+  relatedId Int?     // ID связанного объекта (userId, commentId, etc)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Связи
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// Модель истории поиска
+model SearchHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  query     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Связи
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("search_history")
+}
+
+// Модель рейтинга пользователей
+model UserStats {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique @map("user_id")
+  ratingsCount    Int      @default(0)
+  commentsCount   Int      @default(0)
+  animesViewed    Int      @default(0)
+  friendsCount    Int      @default(0)
+  activityScore   Float    @default(0) // Глобальный рейтинг
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Связи
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityScore])
+  @@map("user_stats")
+}
+
+// Модель для сообщений
+model Message {
+  id              Int         @id @default(autoincrement())
+  senderId        Int         @map("sender_id")
+  recipientId     Int         @map("recipient_id")
+  conversationId  Int         @map("conversation_id")
+  content         String
+  isRead          Boolean     @default(false) @map("is_read")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Связи
+  sender          User        @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient       User        @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// Модель для диалогов
+model Conversation {
+  id              Int         @id @default(autoincrement())
+  participant1Id  Int         @map("participant_1_id")
+  participant2Id  Int         @map("participant_2_id")
+  lastMessageAt   DateTime    @updatedAt @map("last_message_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  // Связи
+  participant1    User        @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2    User        @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@unique([participant1Id, participant2Id])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+// Модель для достижений и бейджей
+model Achievement {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  description   String
+  icon          String   // Emoji или URL
+  badge         String?  // Badge name
+  condition     String   // Условие получения (e.g., "10_ratings", "100_comments")
+  rarity        String   @default("common") // common, uncommon, rare, epic, legendary
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Связи
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+// Модель для связи пользователя и достижений
+model UserAchievement {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  achievementId   Int      @map("achievement_id")
+  unlockedAt      DateTime @default(now()) @map("unlocked_at")
+  
+  // Связи
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement     Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// Модель для полос активности
+model ActivityStreak {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique @map("user_id")
+  currentStreak   Int      @default(0) @map("current_streak") // Дней подряд
+  maxStreak       Int      @default(0) @map("max_streak")
+  lastActivityAt  DateTime @default(now()) @map("last_activity_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Связи
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_streaks")
+}
+
+// Модель для недавно просмотренного
+model RecentlyWatched {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  animeId         Int      @map("anime_id")
+  lastWatchedAt   DateTime @default(now()) @updatedAt @map("last_watched_at")
+  progress        Int      @default(0) // Процент прогресса (0-100)
+
+  // Связи
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime           Anime    @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
+  @@index([userId])
+  @@index([lastWatchedAt])
+  @@map("recently_watched")
 }

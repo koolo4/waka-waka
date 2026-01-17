@@ -75,14 +75,19 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 p-4 relative overflow-hidden">
+      {/* Matrix rain background effect */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_1px,rgba(0,255,65,0.03)_1px)] bg-[length:50px_50px]"></div>
+      </div>
+
+      <Card className="w-full max-w-md relative z-10 border-cyan-500/30 bg-slate-900/80 backdrop-blur-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            waka-waka
+          <CardTitle className="text-2xl neon-text-magenta font-mono font-black tracking-wider">
+            WAKA-WAKA
           </CardTitle>
-          <CardDescription>
-            Создайте новый аккаунт
+          <CardDescription className="text-cyan-400">
+            Зарегистрируйтесь в киберпространстве
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -154,7 +159,7 @@ export default function SignUpPage() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full cyber-button bg-gradient-to-r from-cyan-500/50 to-magenta-500/50 border-cyan-500/50 text-white hover:border-cyan-400 hover:text-cyan-100 font-bold"
               disabled={isLoading || success !== ""}
             >
               {isLoading ? (
@@ -169,14 +174,14 @@ export default function SignUpPage() {
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">Уже есть аккаунт? </span>
-            <Link href="/auth/signin" className="text-blue-600 hover:underline">
+            <span className="text-cyan-400">Уже есть аккаунт? </span>
+            <Link href="/auth/signin" className="text-magenta-400 hover:text-magenta-300 underline">
               Войти
             </Link>
           </div>
 
           <div className="mt-4 text-center">
-            <Link href="/" className="text-sm text-muted-foreground hover:underline">
+            <Link href="/" className="text-sm text-cyan-500 hover:text-cyan-400 underline">
               ← Вернуться на главную
             </Link>
           </div>

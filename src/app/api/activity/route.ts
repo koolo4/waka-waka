@@ -83,7 +83,7 @@ export async function GET() {
         user: c.user,
         anime: c.anime,
         data: {
-          text: c.text.substring(0, 100)
+          text: c.comment.substring(0, 100)
         },
         createdAt: c.createdAt
       }))

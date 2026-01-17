@@ -10,6 +10,8 @@ const nextConfig = {
       "ugc.same-assets.com",
       "m.media-amazon.com",
       "s3.eu-central-1.wasabisys.com",
+      "cdn.myanimelist.net",
+      "api.myanimelist.net",
     ],
     remotePatterns: [
       {

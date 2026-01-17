@@ -139,8 +139,7 @@ export function RecommendationsClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {recommendations.map((rec) => (
             <Link key={rec.id} href={`/anime/${rec.anime.id}`}>
-              <div className="relative group cursor-pointer h-full">
-                <AnimeCard {...rec.anime} />
+              <AnimeCard {...rec.anime} />
 
                 {/* Причина рекомендации */}
                 <div className="absolute top-2 right-2 z-50">
@@ -164,7 +163,6 @@ export function RecommendationsClient() {
                     </p>
                   )}
                 </div>
-              </div>
             </Link>
           ))}
         </div>

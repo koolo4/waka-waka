@@ -1,11 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import { AnimeCard } from '@/components/anime-card'
 import { AnimeSearchFilter } from '@/components/anime-search-filter'
 import { TrendingAnimeSection } from '@/components/trending-anime-section'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Star, TrendingUp, Users, Film, MessageCircle, Zap, Activity, Database } from 'lucide-react'
-import { revalidateTag } from 'next/cache'
 
 async function getAnimeWithStats(page = 1, limit = 12) {
   const skip = (page - 1) * limit
@@ -20,11 +17,6 @@ async function getAnimeWithStats(page = 1, limit = 12) {
         year: true,
         imageUrl: true,
         createdAt: true,
-        creator: {
-          select: {
-            username: true
-          }
-        },
         _count: {
           select: {
             ratings: true,
@@ -42,7 +34,6 @@ async function getAnimeWithStats(page = 1, limit = 12) {
     prisma.anime.count()
   ])
 
-  // Получаем средние рейтинги для этих аниме
   const animeIds = anime.map(a => a.id)
   const ratingStats = await prisma.rating.groupBy({
     by: ['animeId'],
@@ -63,7 +54,7 @@ async function getAnimeWithStats(page = 1, limit = 12) {
       ratingsCount: item._count.ratings,
       commentsCount: item._count.comments,
       viewsCount: item._count.userStatuses
-    })),
+    } as any)),
     total,
     pages: Math.ceil(total / limit),
     currentPage: page
@@ -116,6 +107,7 @@ export default async function HomePage() {
           <div className="relative">
             <p className="text-xl md:text-2xl text-foreground/80 mb-8 max-w-3xl mx-auto leading-relaxed">
               <span className="neon-text-green">Погрузитесь</span> в неоновый мир аниме будущего, где
+              <span className="neon-text-cyan"> виртуальность</span> и
               <span className="neon-text-magenta"> технологии</span> встречаются с искусством
             </p>
 

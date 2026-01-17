@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const animeId = parseInt(params.id)
+    const { id } = await params
+    const animeId = parseInt(id)
 
     const ratings = await prisma.rating.findMany({
       where: { animeId },

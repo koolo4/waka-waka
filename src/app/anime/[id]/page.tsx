@@ -20,6 +20,7 @@ async function getAnimeById(id: number) {
       year: true,
       studio: true,
       imageUrl: true,
+      videoUrl: true,
       createdAt: true,
       creator: {
         select: {
